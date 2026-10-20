@@ -31,40 +31,62 @@
   const status = document.getElementById('status');
   let displayedVersion = null;
   let checking = false;
+  let lastFallbackCheck = 0;
+
+  async function fetchFresh(url) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+      if (!response.ok) throw new Error('Request failed');
+      return await response.text();
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  function showTable(html) {
+    const documentFromSource = new DOMParser().parseFromString(html, 'text/html');
+    const rows = documentFromSource.querySelectorAll('tbody tr');
+    if (rows.length === 0 || [...rows].some(row => row.cells.length !== 4)) {
+      throw new Error('Invalid allocation table');
+    }
+    document.querySelector('tbody').replaceChildren(...[...rows].map(row => row.cloneNode(true)));
+  }
 
   async function loadLatest() {
     if (checking) return;
     checking = true;
     try {
       const nonce = Date.now();
-      const versionResponse = await fetch(source + 'version.txt?t=' + nonce, { cache: 'no-store' });
-      if (!versionResponse.ok) throw new Error('Version request failed');
-      const version = (await versionResponse.text()).trim();
+      const version = (await fetchFresh(source + 'version.txt?t=' + nonce)).trim();
       if (!/^[a-f0-9]{64}$/.test(version)) throw new Error('Invalid version');
       if (version !== displayedVersion) {
-        const pageResponse = await fetch(source + 'index.html?t=' + nonce, { cache: 'no-store' });
-        if (!pageResponse.ok) throw new Error('Data request failed');
-        const html = await pageResponse.text();
+        const html = await fetchFresh(source + 'index.html?t=' + nonce);
         const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(html));
         const actualVersion = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
         if (actualVersion !== version) throw new Error('Data and version do not match yet');
-        const documentFromSource = new DOMParser().parseFromString(html, 'text/html');
-        const rows = documentFromSource.querySelectorAll('tbody tr');
-        if (rows.length === 0 || [...rows].some(row => row.cells.length !== 4)) {
-          throw new Error('Invalid allocation table');
-        }
-        document.querySelector('tbody').replaceChildren(...[...rows].map(row => row.cloneNode(true)));
+        showTable(html);
         displayedVersion = version;
       }
       status.hidden = true;
       status.classList.remove('error');
       status.textContent = '';
     } catch (error) {
+      if (!document.querySelector('tbody tr') || Date.now() - lastFallbackCheck >= 60000) {
+        lastFallbackCheck = Date.now();
+        try {
+          showTable(await fetchFresh('index.html?t=' + Date.now()));
+          displayedVersion = null;
+        } catch (fallbackError) {
+          // Keep any previously loaded rows visible.
+        }
+      }
       status.hidden = false;
       status.classList.add('error');
-      status.textContent = displayedVersion === null
-        ? 'Unable to load allocation results. Please try again later.'
-        : 'Unable to check for updates. Showing the last loaded results.';
+      status.textContent = document.querySelector('tbody tr')
+        ? 'Live updates unavailable. Showing the published results.'
+        : 'Unable to load allocation results. Please try again later.';
     } finally {
       checking = false;
     }
