@@ -20,7 +20,7 @@
 </style>
 </head>
 <body>
-<p id="status" role="status">Loading allocation results...</p>
+<p id="status" role="status" hidden></p>
 <table>
   <colgroup><col><col><col><col></colgroup>
   <thead><tr><th scope="col">Index Number</th><th scope="col">Project ID</th><th scope="col">Project Title</th><th scope="col">Allocated to (BUPT no.)</th></tr></thead>
@@ -56,9 +56,11 @@
         document.querySelector('tbody').replaceChildren(...[...rows].map(row => row.cloneNode(true)));
         displayedVersion = version;
       }
+      status.hidden = true;
       status.classList.remove('error');
-      status.textContent = 'Checked: ' + new Date().toLocaleTimeString();
+      status.textContent = '';
     } catch (error) {
+      status.hidden = false;
       status.classList.add('error');
       status.textContent = displayedVersion === null
         ? 'Unable to load allocation results. Please try again later.'
