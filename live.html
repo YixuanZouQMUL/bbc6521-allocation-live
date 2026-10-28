@@ -1,99 +1,15 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BBC6521 Project Allocation</title>
-<style>
-  body { margin: 0; padding: 24px; background: #fff; color: #000;
-         font: 16px/21px "Aptos Narrow", Aptos, "Arial Narrow", Arial, sans-serif; }
-  #status { width: 1130px; max-width: 100%; margin: 0 auto 8px; font: 12px/16px Arial, sans-serif; color: #555; }
-  #status.error { color: #a00000; }
-  table { width: 1130px; margin: 0 auto; border-collapse: collapse; table-layout: fixed; }
-  col:nth-child(1) { width: 100px; }
-  col:nth-child(2) { width: 175px; }
-  col:nth-child(3) { width: 690px; }
-  col:nth-child(4) { width: 165px; }
-  th, td { border: 1px solid #777; padding: 0 5px; text-align: left;
-           vertical-align: middle; overflow-wrap: anywhere; }
-  th { font-weight: 700; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BBC6521 Project Allocation — Closed</title>
+  <style>
+    body { max-width: 42rem; margin: 4rem auto; padding: 0 1.5rem; font: 1.1rem/1.5 Arial, sans-serif; color: #222; }
+  </style>
 </head>
 <body>
-<p id="status" role="status" hidden></p>
-<table>
-  <colgroup><col><col><col><col></colgroup>
-  <thead><tr><th scope="col">Index Number</th><th scope="col">Project ID</th><th scope="col">Project Title</th><th scope="col">Allocated to (BUPT no.)</th></tr></thead>
-  <tbody></tbody>
-</table>
-<script>
-  const source = 'https://raw.githubusercontent.com/YixuanZouQMUL/bbc6521-allocation-live/main/';
-  const status = document.getElementById('status');
-  let displayedVersion = null;
-  let checking = false;
-  let lastFallbackCheck = 0;
-
-  async function fetchFresh(url) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    try {
-      const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
-      if (!response.ok) throw new Error('Request failed');
-      return await response.text();
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  function showTable(html) {
-    const documentFromSource = new DOMParser().parseFromString(html, 'text/html');
-    const rows = documentFromSource.querySelectorAll('tbody tr');
-    if (rows.length === 0 || [...rows].some(row => row.cells.length !== 4)) {
-      throw new Error('Invalid allocation table');
-    }
-    document.querySelector('tbody').replaceChildren(...[...rows].map(row => row.cloneNode(true)));
-  }
-
-  async function loadLatest() {
-    if (checking) return;
-    checking = true;
-    try {
-      const nonce = Date.now();
-      const version = (await fetchFresh(source + 'version.txt?t=' + nonce)).trim();
-      if (!/^[a-f0-9]{64}$/.test(version)) throw new Error('Invalid version');
-      if (version !== displayedVersion) {
-        const html = await fetchFresh(source + 'index.html?t=' + nonce);
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(html));
-        const actualVersion = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
-        if (actualVersion !== version) throw new Error('Data and version do not match yet');
-        showTable(html);
-        displayedVersion = version;
-      }
-      status.hidden = true;
-      status.classList.remove('error');
-      status.textContent = '';
-    } catch (error) {
-      if (!document.querySelector('tbody tr') || Date.now() - lastFallbackCheck >= 60000) {
-        lastFallbackCheck = Date.now();
-        try {
-          showTable(await fetchFresh('index.html?t=' + Date.now()));
-          displayedVersion = null;
-        } catch (fallbackError) {
-          // Keep any previously loaded rows visible.
-        }
-      }
-      status.hidden = false;
-      status.classList.add('error');
-      status.textContent = document.querySelector('tbody tr')
-        ? 'Live updates unavailable. Showing the published results.'
-        : 'Unable to load allocation results. Please try again later.';
-    } finally {
-      checking = false;
-    }
-  }
-
-  loadLatest();
-  setInterval(loadLatest, 10000);
-</script>
+  <h1>BBC6521 project allocation page closed</h1>
+  <p>This live allocation page is no longer in use. Please refer to the current course information on QMplus.</p>
 </body>
 </html>
